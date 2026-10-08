@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>班級隨機抽籤與智慧分組神器 - 老師教學好幫手</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Noto Sans TC & Fredoka -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-primary': '#4F46E5',    /* Indigo-600 */
+                        'brand-secondary': '#06B6D4',  /* Cyan-500 */
+                        'brand-accent': '#F59E0B',     /* Amber-500 */
+                        'brand-bg': '#F8FAFC',         /* Slate-50 */
+                        'brand-card': '#FFFFFF',
+                    },
+                    fontFamily: {
+                        'sans': ['"Noto Sans TC"', 'sans-serif'],
+                        'rounded': ['"Fredoka"', '"Noto Sans TC"', 'sans-serif']
+                    },
+                    animation: {
+                        'bounce-short': 'bounceShort 0.4s ease-in-out infinite alternate',
+                        'pulse-glow': 'pulseGlow 1.5s infinite',
+                        'spin-slow': 'spin 3s linear infinite',
+                    },
+                    keyframes: {
+                        bounceShort: {
+                            '0%': { transform: 'translateY(0)' },
+                            '100%': { transform: 'translateY(-8px)' },
+                        },
+                        pulseGlow: {
+                            '0%, 100%': { boxShadow: '0 0 15px rgba(79, 70, 229, 0.4)' },
+                            '50%': { boxShadow: '0 0 30px rgba(79, 70, 229, 0.8)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #F8FAFC;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F1F5F9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 99px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
+        }
+
+        /* Slot Reel Animation Visual Effect */
+        .slot-window {
+            mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
+        }
+
+        .no-select {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+    </style>
+</head>
+<body class="min-h-full flex flex-col text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-700">
+
+    <!-- Header Navbar -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl shadow-md shadow-indigo-200">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight font-rounded flex items-center gap-2">
+                        班級神器
+                        <span class="text-xs bg-indigo-50 text-indigo-600 font-semibold px-2.5 py-0.5 rounded-full border border-indigo-100 hidden sm:inline-block">抽籤與智慧分組</span>
+                    </h1>
+                </div>
+            </div>
+
+            <!-- Tab Switcher -->
+            <nav class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs sm:text-sm font-bold">
+                <button onclick="switchTab('tab-roster')" id="nav-roster" class="px-3 sm:px-4 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5">
+                    <i class="fa-solid fa-users text-slate-500"></i>
+                    <span>學生名單</span>
+                    <span id="roster-count-badge" class="bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded-full text-[10px] font-bold">0</span>
+                </button>
+                <button onclick="switchTab('tab-picker')" id="nav-picker" class="px-3 sm:px-4 py-1.5 rounded-lg text-indigo-600 bg-white shadow-sm transition-all flex items-center gap-1.5">
+                    <i class="fa-solid fa-dice text-indigo-500"></i>
+                    <span>隨機抽籤</span>
+                </button>
+                <button onclick="switchTab('tab-grouping')" id="nav-grouping" class="px-3 sm:px-4 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5">
+                    <i class="fa-solid fa-[#06B6D4] fa-layer-group text-cyan-500"></i>
+                    <span>自動分組</span>
+                </button>
+            </nav>
+
+            <!-- Sound Global Toggle Button -->
+            <div class="flex items-center gap-2">
+                <button id="sound-toggle-btn" onclick="toggleSound()" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-200" title="開啟/關閉音效">
+                    <i class="fa-solid fa-volume-high text-indigo-500" id="sound-icon"></i>
+                    <span class="hidden sm:inline" id="sound-text">音效開啟</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 pointer-events-none flex flex-col gap-2"></div>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+        <!-- TAB 1: ROSTER MANAGEMENT (學生名單管理) -->
+        <section id="tab-roster" class="hidden space-y-6">
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+                <div>
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2 font-rounded">
+                        <i class="fa-solid fa-clipboard-user text-indigo-500"></i> 班級學生名單設定
+                    </h2>
+                    <p class="text-slate-500 text-xs sm:text-sm mt-1">您可以直接貼上學生名字、或是拖曳 CSV 檔案匯入班級名單。</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <!-- Left: Input Area -->
+                    <div class="lg:col-span-7 space-y-4">
+                        <!-- Dropzone for CSV -->
+                        <div id="dropzone" class="border-2 border-dashed border-slate-300 hover:border-indigo-500 bg-slate-50/50 hover:bg-indigo-50/30 rounded-2xl p-6 text-center transition-all cursor-pointer relative group">
+                            <input type="file" id="csv-file-input" accept=".csv, .txt" onchange="handleFileUpload(event)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                            <div class="space-y-2 pointer-events-none">
+                                <div class="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center mx-auto text-xl group-hover:scale-110 transition-transform">
+                                    <i class="fa-solid fa-file-csv"></i>
+                                </div>
+                                <p class="text-sm font-bold text-slate-700">點擊上傳或將 CSV / TXT 檔拖曳至此</p>
+                                <p class="text-xs text-slate-400">支援繁體中文 UTF-8 格式檔名與內容</p>
+                            </div>
+                        </div>
+
+                        <!-- Manual Textarea -->
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-pen text-slate-400"></i> 直接貼上姓名清單 (每行名字一個，或用逗號分隔)：
+                                </label>
+                                <span class="text-xs text-slate-400" id="input-char-count">0 人</span>
+                            </div>
+                            <textarea id="roster-textarea" rows="8" placeholder="例：&#10;林小明&#10;陳美玲&#10;張大同&#10;黃怡君..." class="w-full p-4 rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-sm font-medium transition-all resize-y shadow-inner"></textarea>
+                        </div>
+
+                        <!-- Preset Buttons & Clear -->
+                        <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                            <div class="flex items-center gap-2">
+                                <button onclick="loadPresetRoster('sample30')" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all">
+                                    <i class="fa-solid fa-wand-magic-sparkles text-amber-500 mr-1"></i>載入 25人示範名單
+                                </button>
+                                <button onclick="clearRoster()" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold transition-all">
+                                    <i class="fa-solid fa-trash-can mr-1"></i>清空名單
+                                </button>
+                            </div>
+
+                            <button onclick="saveRosterFromInput()" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-bold shadow-md shadow-indigo-100 hover:shadow-lg transition-all flex items-center gap-2">
+                                <i class="fa-solid fa-floppy-disk"></i> 儲存名單並更新
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Right: Roster Preview List -->
+                    <div class="lg:col-span-5 bg-slate-50 rounded-2xl p-5 border border-slate-200 flex flex-col">
+                        <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-3">
+                            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                <span>名單預覽</span>
+                                <span id="preview-badge" class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-0.5 rounded-full">0 人</span>
+                            </h3>
+                            <button onclick="shuffleRosterOrder()" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-1">
+                                <i class="fa-solid fa-shuffle"></i> 隨機打亂順序
+                            </button>
+                        </div>
+
+                        <div id="roster-preview-list" class="flex-grow overflow-y-auto max-h-[360px] space-y-2 pr-1">
+                            <!-- Preview item chips dynamically generated here -->
+                            <div class="text-center py-12 text-slate-400 space-y-2">
+                                <i class="fa-solid fa-users-slash text-3xl"></i>
+                                <p class="text-xs">尚無學生名單，請在左側輸入或上傳</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: RANDOM PICKER (隨機抽籤功能) -->
+        <section id="tab-picker" class="space-y-6">
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+                <!-- Top Toolbar Controls -->
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <!-- Mode Settings -->
+                    <div class="flex flex-wrap items-center gap-4 w-full sm:w-auto">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-slate-700">抽籤機制:</span>
+                            <label class="inline-flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none bg-white px-3 py-1.5 rounded-xl border border-slate-200">
+                                <input type="radio" name="repeat-mode" value="allow" checked onchange="setRepeatMode('allow')" class="accent-indigo-600">
+                                <span>可重複抽取</span>
+                            </label>
+                            <label class="inline-flex items-center gap-1.5 text-xs font-bold cursor-pointer select-none bg-white px-3 py-1.5 rounded-xl border border-slate-200">
+                                <input type="radio" name="repeat-mode" value="no-repeat" onchange="setRepeatMode('no-repeat')" class="accent-indigo-600">
+                                <span>不重複 (抽取後扣除)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Pool Stats Badge & Reset -->
+                    <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                        <div class="text-xs font-bold text-slate-600 bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 flex items-center gap-3">
+                            <span>總人數: <strong id="pool-total-count" class="text-slate-900">0</strong></span>
+                            <span class="text-slate-300">|</span>
+                            <span>剩餘可抽: <strong id="pool-remain-count" class="text-indigo-600">0</strong></span>
+                        </div>
+                        <button onclick="resetPickerPool()" class="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3 py-1.5 rounded-xl transition-all flex items-center gap-1">
+                            <i class="fa-solid fa-rotate-left"></i> 重置抽籤池
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main Picker Stage (Classroom Display Friendly) -->
+                <div class="relative overflow-hidden rounded-3xl bg-gradient-to-b from-indigo-900 via-slate-900 to-indigo-950 p-8 sm:p-14 text-center text-white border border-indigo-900 shadow-xl flex flex-col items-center justify-center min-h-[380px]">
+                    <!-- Subtle Background Grid Effect -->
+                    <div class="absolute inset-0 bg-[radial-gradient(#6366f1_1px,transparent_1px)] [background-size:24px_24px] opacity-20 pointer-events-none"></div>
+
+                    <!-- Stage Status Title -->
+                    <div id="picker-status-tag" class="relative z-10 mb-6 inline-flex items-center gap-2 bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold backdrop-blur-md">
+                        <i class="fa-solid fa-sparkles text-amber-400 animate-pulse"></i>
+                        <span id="picker-status-text">點擊下方按鈕或按下 [ 空白鍵 ] 開始抽籤</span>
+                    </div>
+
+                    <!-- Animated Slot Machine Reel Window -->
+                    <div class="relative z-10 my-4 w-full max-w-xl h-36 sm:h-44 bg-slate-900/80 rounded-3xl border-4 border-indigo-500/40 shadow-2xl slot-window flex items-center justify-center overflow-hidden">
+                        <!-- Winner / Running Name Display Box -->
+                        <div id="picker-display-name" class="text-4xl sm:text-6xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-white to-amber-300 tracking-wider font-rounded no-select transform transition-all duration-150">
+                            準備抽籤
+                        </div>
+                    </div>
+
+                    <!-- Action Trigger Buttons -->
+                    <div class="relative z-10 mt-8 flex flex-col sm:flex-row items-center gap-4">
+                        <button id="spin-btn" onclick="triggerDraw()" class="w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-indigo-500 via-indigo-600 to-indigo-700 hover:from-indigo-400 hover:to-indigo-600 text-white font-black text-lg sm:text-xl rounded-2xl shadow-lg shadow-indigo-500/40 hover:shadow-indigo-500/60 active:scale-95 transition-all duration-200 flex items-center justify-center gap-3 font-rounded group border border-indigo-400/30">
+                            <i class="fa-solid fa-dice text-amber-300 group-hover:rotate-180 transition-transform duration-500"></i>
+                            <span>開始隨機抽籤！</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Drawn Winners History Bar -->
+                <div class="space-y-3 pt-2">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-slate-800 flex items-center gap-2 font-rounded">
+                            <i class="fa-solid fa-trophy text-amber-500"></i> 本次已抽中學生歷史紀錄 (<span id="history-count">0</span>)
+                        </h3>
+                        <button onclick="clearHistoryLog()" class="text-xs text-slate-500 hover:text-slate-800 font-bold">
+                            清除歷史紀錄
+                        </button>
+                    </div>
+
+                    <div id="history-log-container" class="flex flex-wrap gap-2 p-4 bg-slate-50 rounded-2xl border border-slate-200 min-h-[70px] items-center">
+                        <span class="text-xs text-slate-400 italic">尚無抽中紀錄...</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: AUTO GROUPING (自動分組功能) -->
+        <section id="tab-grouping" class="hidden space-y-6">
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+                <div>
+                    <h2 class="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2 font-rounded">
+                        <i class="fa-solid fa-layer-group text-cyan-500"></i> 智慧自動分組
+                    </h2>
+                    <p class="text-slate-500 text-xs sm:text-sm mt-1">設定分組模式，系統將為您公平且隨機打亂進行學生分組作業。</p>
+                </div>
+
+                <!-- Grouping Parameters Panel -->
+                <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 grid grid-cols-1 md:grid-cols-12 gap-5 items-end">
+                    
+                    <!-- Mode Selector -->
+                    <div class="md:col-span-4 space-y-2">
+                        <label class="text-xs font-bold text-slate-700 block">1. 分組基準方式：</label>
+                        <select id="group-rule-type" onchange="toggleGroupRuleInput()" class="w-full px-3.5 py-2.5 bg-white rounded-xl border border-slate-200 font-bold text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                            <option value="per-group">指定「每組要幾個人」</option>
+                            <option value="total-groups">指定「總共要分成幾組」</option>
+                        </select>
+                    </div>
+
+                    <!-- Number Input -->
+                    <div class="md:col-span-3 space-y-2">
+                        <label id="group-number-label" class="text-xs font-bold text-slate-700 block">2. 每組人數：</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="group-number-input" value="4" min="1" max="50" class="w-full px-3.5 py-2.5 bg-white rounded-xl border border-slate-200 font-bold text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                            <span class="text-xs font-bold text-slate-500 whitespace-nowrap" id="group-unit-text">人 / 組</span>
+                        </div>
+                    </div>
+
+                    <!-- Extra Features (Leader / Theme) -->
+                    <div class="md:col-span-5 flex flex-wrap items-center gap-3">
+                        <div class="space-y-2 flex-grow">
+                            <label class="text-xs font-bold text-slate-700 block">3. 組名風格：</label>
+                            <select id="group-theme-select" class="w-full px-3.5 py-2.5 bg-white rounded-xl border border-slate-200 font-bold text-xs sm:text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                                <option value="numeric">標準風格 (第 1 組, 第 2 組...)</option>
+                                <option value="animals">動物王國 (獅子組, 企鵝組...)</option>
+                                <option value="sweets">美食甜點 (珍珠奶茶, 提拉米蘇...)</option>
+                                <option value="colors">彩虹色彩 (紅寶石組, 翡翠綠...)</option>
+                            </select>
+                        </div>
+
+                        <div class="pt-6">
+                            <label class="inline-flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer bg-white px-3 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 transition-colors">
+                                <input type="checkbox" id="assign-leader-checkbox" checked class="rounded accent-cyan-600 w-4 h-4">
+                                <span>👑 隨機選指定組長</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Generate Button -->
+                    <div class="md:col-span-12 flex items-center justify-between border-t border-slate-200 pt-4 mt-2">
+                        <div class="text-xs font-bold text-slate-500">
+                            提示：目前總學生人數共 <strong id="grouping-total-count" class="text-cyan-600">0</strong> 人
+                        </div>
+                        <button onclick="generateGroups()" class="px-8 py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl font-bold text-xs sm:text-sm shadow-md shadow-cyan-100 transition-all flex items-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> 開始自動分組！
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Visualized Grouping Results Canvas Grid -->
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-base font-bold text-slate-800 flex items-center gap-2 font-rounded">
+                            <i class="fa-solid fa-shapes text-cyan-500"></i> 分組結果展示
+                        </h3>
+
+                        <!-- Export / Copy Tools -->
+                        <div id="group-tools" class="hidden flex items-center gap-2">
+                            <button onclick="copyGroupResultText()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all flex items-center gap-1">
+                                <i class="fa-solid fa-copy"></i> 複製文字結果
+                            </button>
+                            <button onclick="window.print()" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all flex items-center gap-1">
+                                <i class="fa-solid fa-print"></i> 列印 / 轉 PDF
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Group Cards Container -->
+                    <div id="group-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                        <div class="col-span-full text-center py-16 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-slate-400 space-y-2">
+                            <i class="fa-solid fa-layer-group text-4xl"></i>
+                            <p class="text-xs font-bold">請設定上方條件後點擊「開始自動分組」</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400 mt-auto">
+        <p>班級隨機抽籤與智慧分組神器 &copy; 老師教學好幫手｜設計優化為大螢幕與簡報投影使用</p>
+    </footer>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Global Application State
+        let roster = [];                  // Full student list
+        let pickerPool = [];              // Remaining students for non-repeating draw
+        let drawnHistory = [];            // List of drawn students in order
+        let soundEnabled = true;          // Sound SFX toggle
+        let isSpinning = false;           // Spin state lock
+        let repeatMode = 'allow';         // 'allow' or 'no-repeat'
+        let currentTab = 'tab-picker';    // active tab ID
+
+        // Web Audio API Synthesizer (No external audio files required!)
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioCtx();
+            }
+        }
+
+        // Web Audio sound effects
+        function playTickSound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.05);
+                
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.05);
+            } catch (e) {
+                // Graceful fallback
+            }
+        }
+
+        function playFanfareSound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6 arpeggio
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    const startTime = audioCtx.currentTime + (idx * 0.08);
+                    
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, startTime);
+                    
+                    gain.gain.setValueAtTime(0.2, startTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.3);
+                    
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.3);
+                });
+            } catch (e) {
+                // Graceful fallback
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            const text = document.getElementById('sound-text');
+            if (soundEnabled) {
+                icon.className = 'fa-solid fa-volume-high text-indigo-500';
+                text.innerText = '音效開啟';
+                playTickSound();
+                showToast('🔊 抽籤音效已開啟');
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-slate-400';
+                text.innerText = '靜音模式';
+                showToast('🔇 音效已關閉');
+            }
+        }
+
+        function showToast(msg) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'bg-slate-900 text-white text-xs font-bold px-4 py-3 rounded-2xl shadow-xl animate-bounce-short flex items-center gap-2 border border-slate-700 font-sans';
+            toast.innerHTML = `<span>✨</span> <span>${msg}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 2500);
+        }
+
+        // Preset sample rosters
+        const preset25Names = [
+            '陳冠宇', '林子涵', '張威勝', '黃雅婷', '李柏翰',
+            '王依婷', '吳家豪', '劉宇軒', '蔡佳穎', '楊承翰',
+            '許沛蓁', '鄭智翔', '謝佳霖', '郭秉勳', '洪詩涵',
+            '曾品叡', '廖育安', '賴星羽', '徐佑嘉', '周芯語',
+            '葉家銘', '蘇郁晴', '莊哲瑋', '江羽婷', '蕭博元'
+        ];
+
+        window.onload = function() {
+            // Load roster from localStorage or default preset
+            const saved = localStorage.getItem('teacher_app_roster');
+            if (saved) {
+                try {
+                    roster = JSON.parse(saved);
+                } catch(e) {
+                    roster = [...preset25Names];
+                }
+            } else {
+                roster = [...preset25Names];
+            }
+
+            // Sync initial state
+            updateRosterUI();
+            resetPickerPool();
+
+            // Keyboard shortcut: Spacebar to spin
+            window.addEventListener('keydown', function(e) {
+                if (e.code === 'Space' && currentTab === 'tab-picker') {
+                    // Avoid triggering space on inputs
+                    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+                    e.preventDefault();
+                    triggerDraw();
+                }
+            });
+        };
+
+        function switchTab(tabId) {
+            currentTab = tabId;
+            ['tab-roster', 'tab-picker', 'tab-grouping'].forEach(t => {
+                const sec = document.getElementById(t);
+                const nav = document.getElementById(`nav-${t.replace('tab-', '')}`);
+                if (t === tabId) {
+                    sec.classList.remove('hidden');
+                    nav.className = 'px-3 sm:px-4 py-1.5 rounded-lg text-indigo-600 bg-white shadow-sm transition-all flex items-center gap-1.5';
+                } else {
+                    sec.classList.add('hidden');
+                    nav.className = 'px-3 sm:px-4 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5';
+                }
+            });
+        }
+
+        // CSV File Uploader & Parser
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                parseAndSetNames(text);
+                showToast(`📄 成功讀取檔案: ${file.name}`);
+            };
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        function parseAndSetNames(rawText) {
+            // Split by newlines or commas or semicolons
+            const names = rawText
+                .split(/[\r\n,;]+/)
+                .map(n => n.trim().replace(/^["']|["']$/g, ''))
+                .filter(n => n.length > 0 && n.toLowerCase() !== '姓名' && n.toLowerCase() !== 'name');
+
+            if (names.length === 0) {
+                showToast('⚠️ 未能讀取到有效學生姓名');
+                return;
+            }
+
+            roster = names;
+            saveRosterToStorage();
+            updateRosterUI();
+            resetPickerPool();
+        }
+
+        function saveRosterFromInput() {
+            const val = document.getElementById('roster-textarea').value;
+            parseAndSetNames(val);
+            showToast('💾 學生名單已更新並儲存！');
+        }
+
+        function loadPresetRoster(presetKey) {
+            if (presetKey === 'sample30') {
+                roster = [...preset25Names];
+                saveRosterToStorage();
+                updateRosterUI();
+                resetPickerPool();
+                showToast('✨ 已載入 25 人示範名單');
+            }
+        }
+
+        function clearRoster() {
+            roster = [];
+            saveRosterToStorage();
+            updateRosterUI();
+            resetPickerPool();
+            showToast('🗑️ 名單已清空');
+        }
+
+        function saveRosterToStorage() {
+            localStorage.setItem('teacher_app_roster', JSON.stringify(roster));
+        }
+
+        function shuffleRosterOrder() {
+            roster = fisherYatesShuffle(roster);
+            saveRosterToStorage();
+            updateRosterUI();
+            resetPickerPool();
+            showToast('🎲 已隨機打亂名單順序');
+        }
+
+        function updateRosterUI() {
+            // Update textarea text
+            document.getElementById('roster-textarea').value = roster.join('\n');
+            document.getElementById('input-char-count').innerText = `${roster.length} 人`;
+
+            // Update badge counts
+            document.getElementById('roster-count-badge').innerText = roster.length;
+            document.getElementById('preview-badge').innerText = `${roster.length} 人`;
+            document.getElementById('pool-total-count').innerText = roster.length;
+            document.getElementById('grouping-total-count').innerText = roster.length;
+
+            // Render Preview Chips
+            const previewContainer = document.getElementById('roster-preview-list');
+            if (roster.length === 0) {
+                previewContainer.innerHTML = `
+                    <div class="text-center py-12 text-slate-400 space-y-2">
+                        <i class="fa-solid fa-users-slash text-3xl"></i>
+                        <p class="text-xs">尚無學生名單，請在左側輸入或上傳</p>
+                    </div>`;
+            } else {
+                previewContainer.innerHTML = roster.map((name, idx) => `
+                    <div class="flex items-center justify-between bg-white px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 shadow-sm">
+                        <span class="flex items-center gap-2">
+                            <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-500 text-[10px] flex items-center justify-center font-mono">${idx + 1}</span>
+                            <span>${name}</span>
+                        </span>
+                        <button onclick="removeSingleStudent(${idx})" class="text-slate-300 hover:text-rose-500 transition-colors">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function removeSingleStudent(idx) {
+            roster.splice(idx, 1);
+            saveRosterToStorage();
+            updateRosterUI();
+            resetPickerPool();
+        }
+
+        // Random Picker Core Logic
+        function setRepeatMode(mode) {
+            repeatMode = mode;
+            resetPickerPool();
+        }
+
+        function resetPickerPool() {
+            pickerPool = [...roster];
+            document.getElementById('pool-remain-count').innerText = pickerPool.length;
+            document.getElementById('picker-status-text').innerText = '點擊下方按鈕或按下 [ 空白鍵 ] 開始抽籤';
+        }
+
+        function clearHistoryLog() {
+            drawnHistory = [];
+            renderHistoryLog();
+        }
+
+        function triggerDraw() {
+            if (isSpinning) return;
+            if (roster.length === 0) {
+                showToast('⚠️ 請先新增學生名單再開始抽籤！');
+                switchTab('tab-roster');
+                return;
+            }
+
+            // Check pool if no-repeat
+            if (repeatMode === 'no-repeat' && pickerPool.length === 0) {
+                showToast('🎉 所有學生均已抽過一輪囉！已自動重置抽籤池。');
+                resetPickerPool();
+            }
+
+            const currentPool = (repeatMode === 'no-repeat') ? pickerPool : roster;
+            if (currentPool.length === 0) return;
+
+            isSpinning = true;
+            document.getElementById('spin-btn').disabled = true;
+            document.getElementById('spin-btn').classList.add('opacity-50', 'cursor-not-allowed');
+
+            const displayEl = document.getElementById('picker-display-name');
+            const statusTag = document.getElementById('picker-status-text');
+            statusTag.innerText = '隨機滾動中...';
+
+            // Decelerating Spin Animation Parameters
+            let counter = 0;
+            let totalSteps = 28 + Math.floor(Math.random() * 8); // ~35 steps
+            let speed = 40; // initial speed ms
+
+            // Random winner selection
+            const winnerIndex = Math.floor(Math.random() * currentPool.length);
+            const winnerName = currentPool[winnerIndex];
+
+            function spinStep() {
+                // Pick a random temp candidate to show during spin
+                const randomCandidate = currentPool[Math.floor(Math.random() * currentPool.length)];
+                displayEl.innerText = randomCandidate;
+                displayEl.classList.remove('scale-110', 'text-amber-300');
+                displayEl.classList.add('scale-95', 'opacity-80');
+
+                playTickSound();
+
+                counter++;
+                if (counter < totalSteps) {
+                    // Gradually slow down
+                    if (counter > totalSteps - 12) speed += 25;
+                    else if (counter > totalSteps - 6) speed += 50;
+                    setTimeout(spinStep, speed);
+                } else {
+                    // Finish & Reveal Winner
+                    displayEl.innerText = winnerName;
+                    displayEl.classList.remove('scale-95', 'opacity-80');
+                    displayEl.classList.add('scale-110', 'text-amber-300');
+
+                    playFanfareSound();
+
+                    // Confetti Celebration
+                    confetti({
+                        particleCount: 80,
+                        spread: 60,
+                        origin: { y: 0.6 }
+                    });
+
+                    statusTag.innerText = `🎉 恭喜抽中：${winnerName}`;
+
+                    // Update Pool & History
+                    if (repeatMode === 'no-repeat') {
+                        pickerPool.splice(winnerIndex, 1);
+                        document.getElementById('pool-remain-count').innerText = pickerPool.length;
+                    }
+
+                    drawnHistory.unshift({
+                        name: winnerName,
+                        time: new Date().toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                    });
+                    renderHistoryLog();
+
+                    // Unlock Spin
+                    isSpinning = false;
+                    document.getElementById('spin-btn').disabled = false;
+                    document.getElementById('spin-btn').classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            }
+
+            spinStep();
+        }
+
+        function renderHistoryLog() {
+            const container = document.getElementById('history-log-container');
+            document.getElementById('history-count').innerText = drawnHistory.length;
+
+            if (drawnHistory.length === 0) {
+                container.innerHTML = `<span class="text-xs text-slate-400 italic">尚無抽中紀錄...</span>`;
+                return;
+            }
+
+            container.innerHTML = drawnHistory.map((item, idx) => `
+                <div class="bg-white px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 shadow-sm flex items-center gap-2 font-rounded animate-bounce-short">
+                    <span class="w-4 h-4 rounded-full bg-amber-100 text-amber-700 text-[10px] flex items-center justify-center font-black">${drawnHistory.length - idx}</span>
+                    <span class="text-indigo-600">${item.name}</span>
+                    <span class="text-[10px] text-slate-400 font-normal">${item.time}</span>
+                </div>
+            `).join('');
+        }
+
+        // Auto Grouping Logic
+        function toggleGroupRuleInput() {
+            const type = document.getElementById('group-rule-type').value;
+            const label = document.getElementById('group-number-label');
+            const unit = document.getElementById('group-unit-text');
+
+            if (type === 'per-group') {
+                label.innerText = '2. 每組人數：';
+                unit.innerText = '人 / 組';
+            } else {
+                label.innerText = '2. 總共組數：';
+                unit.innerText = '組';
+            }
+        }
+
+        function fisherYatesShuffle(array) {
+            let arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // Group Naming Themes
+        const themePresets = {
+            numeric: idx => `第 ${idx + 1} 組`,
+            animals: idx => ['🦁 獅子組', '🐧 企鵝組', '🐼 大熊貓組', '🦊 奇幻狐狸組', '🐬 藍海豚組', '🐨 考拉組', '🦉 智慧貓頭鷹組', '🐯 勇猛老虎組'][idx % 8] || `小組 ${idx + 1}`,
+            sweets: idx => ['🧋 珍珠奶茶組', '🥐 酥翠可頌組', '🍰 提拉米蘇組', '🍓 草莓蛋糕組', '🍩 甜甜圈組', '馬卡龍組', '🍧 芒果刨冰組', '鬆餅組'][idx % 8] || `小組 ${idx + 1}`,
+            colors: idx => ['🔴 紅寶石隊', '🔵 翡翠藍隊', '🟡 琥珀金隊', '🟢 森林綠隊', '🟣 紫水晶隊', '橙日光隊', '粉櫻花隊', '⚪ 白銀隊'][idx % 8] || `小組 ${idx + 1}`,
+        };
+
+        let currentGeneratedGroups = [];
+
+        function generateGroups() {
+            if (roster.length === 0) {
+                showToast('⚠️ 請先新增學生名單再進行分組！');
+                switchTab('tab-roster');
+                return;
+            }
+
+            const ruleType = document.getElementById('group-rule-type').value;
+            const inputVal = parseInt(document.getElementById('group-number-input').value) || 1;
+            const themeKey = document.getElementById('group-theme-select').value;
+            const assignLeader = document.getElementById('assign-leader-checkbox').checked;
+
+            const shuffledStudents = fisherYatesShuffle(roster);
+            let groups = [];
+
+            if (ruleType === 'per-group') {
+                const perGroup = Math.max(1, inputVal);
+                const groupCount = Math.ceil(shuffledStudents.length / perGroup);
+                
+                for (let i = 0; i < groupCount; i++) {
+                    groups.push(shuffledStudents.slice(i * perGroup, (i + 1) * perGroup));
+                }
+            } else {
+                // Total groups
+                const totalGroups = Math.max(1, Math.min(inputVal, shuffledStudents.length));
+                for (let i = 0; i < totalGroups; i++) {
+                    groups.push([]);
+                }
+                // Distribute evenly
+                shuffledStudents.forEach((student, idx) => {
+                    groups[idx % totalGroups].push(student);
+                });
+            }
+
+            // Structure formatted result
+            const nameGenerator = themePresets[themeKey] || themePresets.numeric;
+            currentGeneratedGroups = groups.map((members, idx) => {
+                let leaderName = null;
+                if (assignLeader && members.length > 0) {
+                    leaderName = members[Math.floor(Math.random() * members.length)];
+                }
+                return {
+                    name: nameGenerator(idx),
+                    members: members,
+                    leader: leaderName
+                };
+            });
+
+            playFanfareSound();
+            renderGroupResults();
+            document.getElementById('group-tools').classList.remove('hidden');
+            showToast('✨ 完成自動分組！');
+        }
+
+        function renderGroupResults() {
+            const grid = document.getElementById('group-cards-grid');
+
+            if (currentGeneratedGroups.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full text-center py-16 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-slate-400 space-y-2">
+                        <i class="fa-solid fa-layer-group text-4xl"></i>
+                        <p class="text-xs font-bold">請設定條件後點擊「開始自動分組」</p>
+                    </div>`;
+                return;
+            }
+
+            // Colors for Group Card Header Accents
+            const cardGradients = [
+                'from-indigo-500 to-indigo-600',
+                'from-cyan-500 to-cyan-600',
+                'from-amber-500 to-amber-600',
+                'from-emerald-500 to-emerald-600',
+                'from-rose-500 to-rose-600',
+                'from-purple-500 to-purple-600',
+            ];
+
+            grid.innerHTML = currentGeneratedGroups.map((grp, idx) => {
+                const gradClass = cardGradients[idx % cardGradients.length];
+
+                return `
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md">
+                    <!-- Group Header -->
+                    <div class="bg-gradient-to-r ${gradClass} p-3.5 text-white flex items-center justify-between">
+                        <h4 class="font-bold text-sm font-rounded flex items-center gap-2">
+                            <span>${grp.name}</span>
+                        </h4>
+                        <span class="bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">
+                            ${grp.members.length} 人
+                        </span>
+                    </div>
+
+                    <!-- Members List -->
+                    <div class="p-4 space-y-2 flex-grow bg-slate-50/50">
+                        ${grp.members.map(member => {
+                            const isLeader = (member === grp.leader);
+                            return `
+                            <div class="flex items-center justify-between bg-white px-3 py-2 rounded-xl border ${isLeader ? 'border-amber-300 bg-amber-50/40 shadow-xs' : 'border-slate-200'} text-xs font-bold text-slate-800">
+                                <span class="flex items-center gap-2">
+                                    <i class="fa-solid fa-user text-slate-300"></i>
+                                    <span>${member}</span>
+                                </span>
+                                ${isLeader ? '<span class="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-200">👑 組長</span>' : ''}
+                            </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        function copyGroupResultText() {
+            if (currentGeneratedGroups.length === 0) return;
+
+            let text = `📋 【班級分組結果】 (共 ${roster.length} 人)\n`;
+            text += `========================\n`;
+
+            currentGeneratedGroups.forEach(grp => {
+                text += `\n【${grp.name}】 (${grp.members.length}人)\n`;
+                grp.members.forEach(m => {
+                    text += `  - ${m}${m === grp.leader ? ' (👑組長)' : ''}\n`;
+                });
+            });
+
+            // Copy to clipboard fallback handler
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+
+            showToast('📋 分組結果文字已複製到剪貼簿！');
+        }
+    </script>
+</body>
+</html>
